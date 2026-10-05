@@ -1,0 +1,8 @@
+{
+    "agents": [
+        "zed"
+    ],
+    "mcp": true,
+    "nightwatch": false,
+    "sail": false
+}
