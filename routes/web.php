@@ -1,44 +1,17 @@
 <?php
 
-use App\Http\Controllers\QuotesController;
+use App\Http\Controllers\QuranController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// Route Quotes utama ditangani oleh QuotesController
 
-Route::get('/produk', function () {
-    return response()->json([
-        [ 
-            "id" => 1,
-            "nama" => "Buku Lima Sekawan",
-            "harga" => 50000,
-            "stok" => 5
-        ],
-        [
-            "id" => 2,
-            "nama" => "Buku Enam Sekawan",
-            "harga" => 60000,
-            "stok" => 6
-        ],
-        [
-            "id" => 3,
-            "nama" => "Buku Tujuh Sekawan",
-            "harga" => 70000,
-            "stok" => 7 
-        ]
-   ] ) ;
-});
+// Portal Islami (eQuran.id Integration)
+Route::get('/', [QuranController::class, 'index'])->name('quran.index');
+Route::get('/quran/{quran}', [QuranController::class, 'show'])->name('quran.show');
 
-Route::get('/produk/2', function () {
-    return response()->json([
-        [ 
-            "id" => 2,
-            "nama" => "Buku Lima Sekawan",
-            "harga" => 50000,
-            "stok" => 10
-        ]
-   ]) ;
-});
+Route::get('/doa', [QuranController::class, 'doa'])->name('doa.index');
+Route::get('/doa/{id}', [QuranController::class, 'doaDetail'])->name('doa.show');
 
-Route::resource('/', QuotesController::class);
+Route::get('/jadwal-sholat', [QuranController::class, 'shalat'])->name('shalat.index');
+Route::post('/api/shalat/kabkota', [QuranController::class, 'getKabKota'])->name('shalat.kabkota');
+Route::post('/api/shalat/jadwal', [QuranController::class, 'getJadwal'])->name('shalat.jadwal');
