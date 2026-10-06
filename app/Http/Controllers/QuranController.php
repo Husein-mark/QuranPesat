@@ -62,7 +62,7 @@ class QuranController extends Controller
     }
 
     /**
-     * Menampilkan detail surat tertentu beserta ayat, audio surat, audio ayat, dan tafsir.
+     * Menampilkan detail surat tertentu beserta ayat, audio surat, audio ayat, tafsir, dan paginasi ayat.
      */
     public function show(Request $request, string $nomor)
     {
@@ -81,7 +81,7 @@ class QuranController extends Controller
             if ($responseSurat->successful()) {
                 $surat = $responseSurat->json()['data'] ?? null;
             } else {
-                $error = 'Surat tidak ditemukan atau server eQuran sedang mengalami gangguan.';
+                $error = 'Surat tidak ditemukan atau server Al-Qur\'an sedang mengalami gangguan.';
             }
 
             // Ambil data tafsir untuk surat ini
@@ -99,7 +99,56 @@ class QuranController extends Controller
             }
         } catch (\Exception $e) {
             Log::error("QuranController show ({$nomor}) error: " . $e->getMessage());
-            $error = 'Gagal menghubungi server API eQuran. Silakan periksa koneksi internet.';
+            $error = 'Gagal menghubungi server API Al-Qur\'an. Silakan periksa koneksi internet.';
+        }
+
+        // Paginasi Ayat untuk surat yang memiliki banyak ayat
+        $allAyat = $surat['ayat'] ?? [];
+        $totalAyat = count($allAyat);
+
+        // Ambil preferensi ayat per halaman (default 20 ayat agar cepat dan nyaman dibaca)
+        $perPageParam = $request->get('per_page', '20');
+        $showAll = ($perPageParam === 'all' || $perPageParam === 'semua');
+        $perPage = (int) $perPageParam;
+        if (! $showAll && ($perPage < 5 || $perPage > 150)) {
+            $perPage = 20;
+        }
+
+        if ($showAll || $totalAyat <= $perPage) {
+            $currentPage = 1;
+            $totalPages = 1;
+            $paginatedAyat = $allAyat;
+            $startAyat = $totalAyat > 0 ? 1 : 0;
+            $endAyat = $totalAyat;
+        } else {
+            $totalPages = max(1, (int) ceil($totalAyat / $perPage));
+            $currentPage = (int) $request->get('page', 1);
+            if ($currentPage < 1) {
+                $currentPage = 1;
+            } elseif ($currentPage > $totalPages) {
+                $currentPage = $totalPages;
+            }
+
+            $offset = ($currentPage - 1) * $perPage;
+            $paginatedAyat = array_slice($allAyat, $offset, $perPage);
+            $startAyat = $offset + 1;
+            $endAyat = min($totalAyat, $offset + $perPage);
+        }
+
+        // Peta audio seluruh ayat agar audio player ayat tetap bisa berputar
+        $allAyatAudioMap = [];
+        $allNomorAyat = [];
+        foreach ($allAyat as $item) {
+            $nomorAyat = $item['nomorAyat'] ?? null;
+            if ($nomorAyat !== null) {
+                $allNomorAyat[] = $nomorAyat;
+                $allAyatAudioMap[$nomorAyat] = $item['audio'] ?? [];
+            }
+        }
+
+        // Ganti koleksi ayat dengan ayat halaman saat ini
+        if ($surat) {
+            $surat['ayat'] = $paginatedAyat;
         }
 
         return view('detail', [
@@ -107,6 +156,15 @@ class QuranController extends Controller
             'tafsir' => $tafsir,
             'nomor' => $nomor,
             'error' => $error,
+            'totalAyat' => $totalAyat,
+            'perPage' => $showAll ? 'all' : $perPage,
+            'currentPage' => $currentPage,
+            'totalPages' => $totalPages,
+            'startAyat' => $startAyat,
+            'endAyat' => $endAyat,
+            'allAyatAudioMap' => $allAyatAudioMap,
+            'allNomorAyat' => $allNomorAyat,
+            'showAll' => $showAll,
         ]);
     }
 
